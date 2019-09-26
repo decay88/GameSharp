@@ -14,11 +14,13 @@ namespace GameSharp.Internal.Memory
     /// </summary>
     public abstract class SafeFunction
     {
-        private readonly Delegate SafeFunctionDelegate;
+        private static Delegate SafeFunctionDelegate;
 
         public SafeFunction()
         {
-            MemoryAddress address = ToCallDelegate().ToFunctionPtr();
+            Delegate @delegate = ToCallDelegate();
+
+            MemoryAddress address = @delegate.ToFunctionPtr();
 
             MemoryModule module = address.GetMyModule();
 
@@ -28,17 +30,14 @@ namespace GameSharp.Internal.Memory
 
             MemoryAddress codeCave = module.FindCodeCaveInModule((uint)bytes.Count);
 
-            // TODO: Refactor since this is now a detection vector as we are now writing the 'JumpTable' into the process.
             codeCave.Write(bytes.ToArray());
 
-            Type typeOfDelegate = ToCallDelegate().GetType();
-
-            //LoggingService.Verbose($"{typeOfDelegate.ToString()} - JmpTable at {codeCave.BaseAddress.ToString("X")}");
+            Type typeOfDelegate = @delegate.GetType();
 
             SafeFunctionDelegate = Marshal.GetDelegateForFunctionPointer(codeCave.BaseAddress, typeOfDelegate);
         }
 
-        internal T Call<T>(params object[] parameters)
+        public T Call<T>(params object[] parameters)
         {
             T ret = (T)SafeFunctionDelegate.DynamicInvoke(parameters);
 
